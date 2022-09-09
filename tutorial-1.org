@@ -1,0 +1,304 @@
+* Tutorial 1 - A Chat App
+
+
+
+** Prerequisites:
+
+1. Install a common lisp environment (see https://lisp-lang.org/learn/getting-started/ for Windows try https://portacle.github.io/ replace ~common/lisp with the portacle\projects directory)
+
+2. Get the github version of CLOG go to ~~/common-lisp~ and run:
+   
+   #+begin_src shell
+   git clone https://github.com/rabbibotton/clog.git
+   #+end_src
+
+   To update the code in the ~~/common-lisp/clog~ directory run ~git pull~ There are improvements daily.
+
+3. Then run
+   
+   #+begin_src lisp
+   (ql:quickload :clog/tools)
+   #+end_src
+
+   to make sure CLOG and the CLOG Builder are installed.
+
+
+** Setup
+
+Start your lisp environment (usually a matter of starting emacs and then ~M-x slime~).
+
+Start the CLOG Builder
+
+#+begin_src lisp
+CL-USER> (ql:quickload :clog/tools)
+#+end_src
+
+#+begin_example
+To load "clog/tools":
+  Load 1 ASDF system:
+    clog/tools
+; Loading "clog/tools"
+
+(:CLOG/TOOLS)
+#+end_example
+
+#+begin_src lisp
+CL-USER> (clog-tools:clog-builder)
+#+end_src
+
+In the CLOG Builder menu choose Builder and then New Application Template.
+
+Choose /New CLOG-GUI project/ then click /Fill Template/. Fill in the system name with ~my-chat~. Save your ~my-chat~ project in the default directory of ~~/common-lisp~ by hitting /ok/. The CLOG builder will then create your new project in ~~/common-lisp/my-chat~
+
+Now lets load our project:
+
+#+begin_src lisp
+CL-USER> (ql:quickload :my-chat)
+#+end_src
+
+We should obtain the output:
+
+#+begin_example
+To load "my-chat":
+  Load 1 ASDF system:
+    my-chat
+; Loading "my-chat"
+..................................................
+[package my-chat]
+(:MY-CHAT)
+#+end_example
+
+Then let's start our project:
+
+#+begin_src lisp
+CL-USER> (my-chat:start-app)
+#+end_src
+
+** Let's Make an App
+
+We are now ready to create our application.
+
+Let us create two panels. The first will be a login panel and the second our chat panel.
+
+So for our login panel we will in the /Control Properties/ window set the panel /name to/ ~my-login~ and /in-package to/ ~my-chat~.
+
+Next, by selecting controls from the /Control Palette/ window and then clicking on our panel, we will create the layout. Select the following controls:
+
+1. A label
+2. A form input
+3. A button
+
+   And use the /Control Properties/ window to set the label ~Enter username:~ and button text ~OK~ according to our picture.
+
+   Next we will select /div/ from the /Control Palette/ and click on our panel window /my-login/. Then using the /Control List/ window, while holding the shift-key, we drag each of the three controls into the div.
+
+   Leaving the /div/ control selected, go back to the /Control Properties/. Under /text/ remove the default input (it is probably ~div-4~) and set the /text alignment/ to ~center~. Then, using the /Control List/ window, for each of the previous three controls we click on the control to select it and change the /positioning/ to ~static~ (treat controls as if text) to align each to the center of the parent /div/.
+
+   We now add some space by clicking on our /input-2/ control in the /Control List/ and then setting the /margin/ to ~10px~. We can also rename the controls by clicking on each in the /Control List/ and setting the name property to something more meaningful (/username-label/, /username/, /ok-button/). We also now set our div to position ~relative~ and set top to ~0px~ and left to ~0px~, which allows our panel to be centered in a window using ~center-children~ in code later. HTML layouts are complicated, with CLOG Builder in general using an outer div with positioning of ~relative~ and then using for containing controls ~static~ (flow as text) or ~absolute~ (exact drag and drop) will generally get you what you are looking for.
+
+** WOW - CLOG Builder files are editable HTML!
+
+Let's save our file. In our project directory click /Save/ and save the file as ~my-login.html~. The native format of the CLOG builder is HTML. We could have created the html in any program or editor and loaded it in as well.
+
+The CLOG Builder adds data attributes containing the Common Lisp name of the control and the type of control used to create the html. However if they are missing the CLOG builder uses any html id as the Common Lisp name. The events that we will talk about later are also stored as data attributes in the HTML allowing continued round trip editing in other authoring tools and editors. You can for example load my-login.html in to emacs and use ~C-x h~ to select the entire file and then run ~M-x sgml-pretty-print~ and then you can clearly see everything, make changes, save and then load it back in to CLOG builder.
+
+** Installing our Panel
+
+Let us now add our panel to our code. First press the /Rndr/ button on our panel and save the file as ~my-login.lisp~ into our project directory. Unlike the html file the rendered lisp file is not intended to be edited because it is generated code. Your code will be entered in other files in the project or directly into the CLOG Builder.
+
+In the file /my-chat.asd/ make the following change by adding our /my-login.lisp/ to the components section of the asdf system.
+
+#+begin_src lisp
+(asdf:defsystem #:my-chat
+  :description "My Easy Chat"
+
+  :author "some@one.com"
+  :license  "BSD"
+  :version "0.0.0"
+  :serial t
+  :depends-on (#:clog)
+  :components ((:file "my-chat")
+               (:file "my-login")))
+#+end_src
+
+In order to display our login panel we need to add the following code to /my-chat.lisp/
+
+
+#+begin_src lisp
+(defpackage #:my-chat
+  (:use #:cl #:clog)
+  (:export start-app))
+
+(in-package :my-chat)
+
+(defun start-my-chat (body)
+  ;; Add the clog-web look and feel
+  (clog-web:clog-web-initialize body)
+  ;; Use the panel-box-layout to center horizontally
+  ;; and vertically our my-login panel on the screen.
+  (let* ((layout (create-panel-box-layout body)))
+    (center-children (center-panel layout))
+    (create-my-login (center-panel layout))))
+
+(defun start-app ()
+  (initialize 'start-my-chat
+   :static-root (merge-pathnames "./www/"
+                  (asdf:system-source-directory :my-chat))))
+
+#+end_src
+
+We added code to /start-app/, created the function /start-my-chat,/ and also added another file to our project. At this point it will be better to recompile the entire project by running ~(ql:quickload :my-chat)~ in the REPL and then running again our start-app with ~(my-chat:start-app)~.
+
+You can now open on the browser http://127.0.0.1 and see our login page.
+
+** CLOG Builder Events
+
+Now it is time for us to take a look at adding events. In this case we will add an event that checks if we entered a username and if not flashes the label red three times.
+
+First let us add our event called /ok-button-clicked/ to the /my-chat.lisp/ file.
+
+#+begin_src lisp
+(defun ok-button-clicked (panel)
+  (when (equal (value (username panel)) "")
+    (dotimes (n 3)
+      (setf (color (username-label panel)) :red)
+      (sleep .1)
+      (setf (color (username-label panel)) :black)
+      (sleep .1))))
+#+end_src
+
+We can now use ~C-M-x~ to incrementally compile our /ok-button-clicked/ function in Emacs.
+
+In the /Control List/ window in the CLOG Builder select the /ok-button/ and then in the /Control Events/ window add in /on-click/ event the function call ~(ok-button-clicked panel)~
+
+Clicking the /Run/ button we can test it live. Also let's save the panel using the /Save/ button and render the panel to code by pressing /Rndr/ and saving our code again to my-login.lisp
+
+*NOTE:* Do not forget to render your code! If not the next time you restart your lisp image your changes will not be present.
+
+** WOW - CLOG Builder is an extension of the REPL!
+
+The /Run/ button renders the panel in memory and evaluates it in the REPL. This means that our changes are live as we continue to develop the panel. If we go back to our still running application we can open http://127.0.0.1 and see that the panel and event are already working.
+
+** CLOG Builder events vs CLOG handlers
+
+It is important to note that /events/ in CLOG Builder are not the same as CLOG /handlers/. Any code can be entered into the event window and executed, in this case the code executed is to run our function /ok-button-clicked/ in the package we set earlier on the panel's properties. Each event has a variable called /panel/ containing the bound controls from the control list, /target/ the control used to fire the event, and in some cases a variable called /data/ containing a property list of additional data just like in CLOG handlers. If you look at the tooltip when hovering over the event it states what variables are bound. When creating functions to respond to events it is up to you to choose which variables to pass. In our example we just passed the panel. Handlers in CLOG are a name for a function that will handle an event.
+
+** Setting up our chat window
+
+Let us now set up our chat window by creating a new panel for our chat. We will use a div to contain the chat conversation, a form input box to type our messages to send, a /Send/ button and a form hidden field to store our username. We will also place one div to set as the outer box of the panel so we can add some background color and define size of the panel. Let's do all of this in the following seps:
+
+1. Chose the /Builder/ menu - /New CLOG GUI Panel/
+2. Name the panel /my-messages/ and the package as /my-chat/
+3. Add the outer box first. Size it to the size wanted and add a background color.
+4. Move the div to the top left corner (/top/ ~0px~ /left/ ~0px~) and set the /positioning/ to ~relative~
+5. Double click on the div in the Control List window to highlight it and make it non selectable in the panel.
+6. Add each of the other controls while selecting the outer div first in the control list, clicking the type of control and then shift clicking the panel to add the new control.
+7. Give each control a name that will be useful (~messages~ for the messages div, ~message-input~ for the text input and ~send-button~ for the send button). Also set the messages div background to white. And set overflow to scroll
+8. Click the send button in the /Control List/ window to add an /on-click/ event in the Control Events window: ~(send-button-clicked panel)~
+9. Finally in the panel window hit /Save to save/ the panel as my-messages.html and then /Rndr/ to render to the file my-messages.lisp
+
+We now can add the my-messages file to our /my-chat.asd/
+
+#+begin_src lisp
+(asdf:defsystem #:my-chat
+  :description "My Easy Chat"
+
+  :author "some@one.com"
+  :license  "BSD"
+  :version "0.0.0"
+  :serial t
+  :depends-on (#:clog)
+  :components ((:file "my-chat")
+               (:file "my-login")
+               (:file "my-messages")))
+#+end_src
+
+We will also add a temporary placeholder for our event in /my-chat.lisp/
+
+#+begin_src lisp
+(defun send-button-clicked (panel)
+  nil)
+#+end_src
+
+We will also modify our /ok-button-clicked/ function such that on entry of a username, it opens a new my-messages panel.
+
+#+begin_src lisp
+(defun ok-button-clicked (panel)
+  (cond ((equal (value (username panel)) "")
+         (dotimes (n 3)
+           (setf (color (username-label panel)) :red)
+           (sleep .1)
+           (setf (color (username-label panel)) :black)
+           (sleep .1)))
+        (t
+         ;; Hide this panel - the my-login panel
+         (setf (hiddenp panel) t)
+         ;; Replace it in the center with a my-messages panel
+         (let* ((msg-panel (create-my-messages
+                              (parent-element panel))))
+           nil))))
+#+end_src
+
+** Final Code 
+
+Let's go ahead and add the supporting code to turn this into a full chat application. Here is the final code:
+
+#+begin_src lisp
+(defpackage #:my-chat
+  (:use #:cl #:clog)
+  (:export start-app))
+
+(in-package :my-chat)
+
+(defvar *user-to-messages-hash* (make-hash-table :test 'equalp)
+  "Hash table of usernames to messages divs")
+
+(defun send-message (user message)
+  "Send a MESSAGE from USER"
+  (maphash (lambda (key value)
+             (declare (ignore key))
+             (create-span value :content 
+                  (format nil "~A : ~A<br>" user message))
+             (setf (scroll-top value) (scroll-height value)))
+           *user-to-messages-hash*))
+
+(defun send-button-clicked (panel)
+  (send-message (value (username panel))
+                (value (message-input panel)))
+  (setf (value (message-input panel)) ""))
+
+(defun ok-button-clicked (panel)
+  (cond ((equal (value (username panel)) "")
+         (dotimes (n 3)
+           (setf (color (username-label panel)) :red)
+           (sleep .1)
+           (setf (color (username-label panel)) :black)
+           (sleep .1)))
+        (t
+         ;; Hide this panel - the my-login panel
+         (setf (hiddenp panel) t)
+         ;; Replace it in the center with a my-messages panel
+         (let* ((my-messages-panel
+                  (create-my-messages (parent-element panel))))
+           ;; Add to our hash of online users
+           (setf (gethash (username panel) *user-to-messages-hash*)
+                 (messages my-messages-panel))
+           ;; Store our username in the my-messages panel
+           (setf (value (username my-messages-panel))
+                 (value (username panel)))))))
+(defun start-my-chat (body)
+  ;; Add the clog-web look and feel
+  (clog-web:clog-web-initialize body)
+  ;; Use the panel-box-layout to center horizontally
+  ;; and vertically our my-login panel on the screen.
+  (let* ((layout (create-panel-box-layout body)))
+    (center-children (center-panel layout))
+    (create-my-login (center-panel layout))
+    (run body)))
+
+(defun start-app ()
+  (initialize 'start-my-chat
+   :static-root (merge-pathnames "./www/"
+                  (asdf:system-source-directory :my-chat))))
+
+#+end_src
